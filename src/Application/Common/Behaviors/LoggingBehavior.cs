@@ -3,6 +3,7 @@ using Application.Common.Services;
 using ErrorOr;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Application.Common.Behaviors;
 
@@ -24,19 +25,25 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     {
         _logger.LogInformation("{@UtcNow} Starting {@RequestName}", _dateTimeProvider.UtcNow, typeof(TRequest).Name);
 
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+
         var result = await next();
 
-        if(result.IsError)
+        stopwatch.Stop();
+        var duration = stopwatch.ElapsedMilliseconds;
+
+        if (result.IsError)
         {
-            var errorMessage = "{@UtcNow} {@RequestName} failed, Errors: ";
+            var errorMessage = "{@UtcNow} {@RequestName} failed after {@Duration} ms, Errors: ";
             foreach (var error in result.Errors!)
             {
                 errorMessage += $"{error.Description}, ";
             }
-            _logger.LogError(errorMessage, _dateTimeProvider.UtcNow, typeof(TRequest).Name);
+            _logger.LogError(errorMessage, _dateTimeProvider.UtcNow, typeof(TRequest).Name, duration);
         }
 
-        _logger.LogInformation("{@UtcNow} Completed {@RequestName}", _dateTimeProvider.UtcNow, typeof(TRequest).Name);
+        _logger.LogInformation("{@UtcNow} Completed {@RequestName} in {@Duration} ms", _dateTimeProvider.UtcNow, typeof(TRequest).Name, duration);
 
         return result;
     }
